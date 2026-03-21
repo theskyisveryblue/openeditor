@@ -6,28 +6,29 @@ Use this file only for SwiftUI or Xcode-based projects.
 
 `oe-swift.json` tells OpenEditor how to find, boot, and capture an iOS project.
 
-`.logic-editor.json` is still used as the workspace shell, but `oe-swift.json` carries the simulator and view data.
+`.logic-editor.json` is still the workspace shell, but `oe-swift.json` carries iOS-specific simulator, launch, and screen-capture data.
 
 ## Minimal example
 
 ```json
 {
-  "name": "Pitcher",
+  "project": "Pitcher.xcodeproj",
   "scheme": "Pitcher",
   "simulator": "iPhone 16 Pro",
   "bundleId": "pafpitcher.Pitcher",
   "views": [
     {
       "name": "ContentView",
-      "file": "ContentView.swift",
+      "file": "Pitcher/ContentView.swift",
       "label": "Main",
-      "nav": "root"
+      "nav": "root",
+      "verifyLabels": ["Home"]
     }
   ]
 }
 ```
 
-## Important fields
+## Canonical fields
 
 | Field | Type | Notes |
 | --- | --- | --- |
@@ -36,7 +37,13 @@ Use this file only for SwiftUI or Xcode-based projects.
 | `simulator` | `string` | Default to `iPhone 16 Pro` unless the repo strongly suggests another target |
 | `bundleId` | `string` | Only include when it can be inferred confidently |
 | `urlScheme` | `string` | Optional deep-link scheme |
+| `launchArgs` | `string[]` | Project-level launch arguments for simulator runs |
 | `views` | `array` | Explicit view capture list |
+| `bootstrapTapXY` | `{ x, y }` | Optional tap point that reaches a stable demo/root state after cold launch |
+| `bootstrapDeepLink` | `string` | Optional deep link that reaches a stable demo/root state before capture |
+| `bootstrapWaitMs` | `number` | Optional wait after bootstrap before captures begin |
+| `remoteUrl` | `string` | Optional remote build server URL |
+| `remoteToken` | `string` | Optional token for the remote build server |
 
 ## View object
 
@@ -44,11 +51,30 @@ Use this file only for SwiftUI or Xcode-based projects.
 {
   "name": "ProfileView",
   "file": "Pitcher/ProfileView.swift",
-  "label": "Profile"
+  "label": "Profile",
+  "tapLabel": "Profile",
+  "verifyLabels": ["Profile"]
 }
 ```
 
-Only add advanced fields like `deepLink`, `tapLabel`, `tapId`, `tapXY`, `verifyLabels`, or `launchArgs` when the repo clearly supports them.
+Supported view-level fields include:
+
+- `name`
+- `file`
+- `label`
+- `device`
+- `deepLink`
+- `tapLabel`
+- `tapId`
+- `tapXY`
+- `nav`
+- `tabIndex`
+- `parent`
+- `requiresLogout`
+- `launchArgs`
+- `verifyLabels`
+
+Only add advanced fields when the repo clearly supports them.
 
 ## Safe generation rules
 
@@ -56,4 +82,5 @@ Only add advanced fields like `deepLink`, `tapLabel`, `tapId`, `tapXY`, `verifyL
 - infer `project` when the Xcode project is nested
 - include obvious `*View.swift` files in `views`
 - prefer fewer accurate views over a long speculative list
-- do not fabricate bundle IDs or deep links
+- use project-relative file paths, not absolute local paths
+- do not fabricate bundle IDs, deep links, launch args, bootstrap actions, or remote credentials

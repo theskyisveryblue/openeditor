@@ -13,6 +13,9 @@ Use this skill to onboard an arbitrary repo into OpenEditor. The output is usual
 - `oe-swift.json` for iOS or SwiftUI repos
 - a short explanation of what was inferred vs. what still needs confirmation
 
+When the repo signals are sufficient, generate the file contents directly.
+Do not ask the user for the `.logic-editor.json` or `oe-swift.json` schema when the references in this skill already cover it.
+
 Read only the references you need:
 
 - Always read [references/project-config.md](references/project-config.md)
@@ -78,6 +81,16 @@ After the config output, include a short explanation covering:
 - whether routes were inferred or defaulted
 - whether `oe-swift.json` was generated and why
 - which fields should be manually confirmed
+
+### 6. Prefer generation over schema questions
+
+If the repo is a supported type and the references here cover the config format:
+
+- generate the file contents directly
+- use conservative defaults when some fields are weakly signaled
+- ask follow-up questions only when a missing field would make the config invalid or misleading
+
+Do not stop with "I need the schema" for normal React, Next, Astro, Expo, React Native, Shopify, or iOS repos.
 
 ## Output Rules
 
