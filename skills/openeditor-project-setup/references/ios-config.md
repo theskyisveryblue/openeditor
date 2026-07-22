@@ -80,7 +80,10 @@ Only add advanced fields when the repo clearly supports them.
 
 - infer `scheme` from the `.xcodeproj` or `.xcworkspace` name when possible
 - infer `project` when the Xcode project is nested
+- if a real `.xcodeproj` or `.xcworkspace` exists, include `project`; omitting it makes the result invalid for simulator preview
 - include obvious `*View.swift` files in `views`
 - prefer fewer accurate views over a long speculative list
 - use project-relative file paths, not absolute local paths
 - do not fabricate bundle IDs, deep links, launch args, bootstrap actions, or remote credentials
+- if the repo only contains `Package.swift` and Swift source files, classify the result as source-only until a host app / installable Xcode target is provided
+- for source-only Swift packages, `scheme` and `views` may still be inferred, but simulator capture is not preview-ready until `project` points at a real `.xcodeproj` or `.xcworkspace`
