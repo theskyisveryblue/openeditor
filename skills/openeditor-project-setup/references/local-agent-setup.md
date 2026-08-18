@@ -1,6 +1,6 @@
 # Local Agent Setup
 
-Use this reference when onboarding Codex, Claude, or an experimental OpenCode 2 CLI for an OpenEditor project.
+Use this reference when onboarding Codex, Claude, an experimental OpenCode 2 CLI, or the Zed agent for an OpenEditor project.
 
 ## Detection
 
@@ -16,7 +16,9 @@ Treat the result conservatively:
 - `authenticated` means that command reports an active login.
 - `method` describes the reported login mechanism when it is available.
 - `recommended` is set only when exactly one authenticated agent is available or the user already saved a valid preference.
-- `needsChoice` means both agents are authenticated and the user should choose.
+- `needsChoice` means more than one agent is authenticated and the user should choose.
+- `zed` is experimental: its agent credentials live in the OS keychain/app data, so only a best-effort `app-data` signal is reported.
+- `tools` reports developer utilities available on the machine (`hunk`, `lazygit`, `lazyworktree`, `nvim`) so onboarding can prefer them when present and never assume them when absent.
 
 Do not infer a paid subscription tier from command availability or authentication. Ask the user when access level materially affects the workflow.
 
