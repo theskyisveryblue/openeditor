@@ -1,6 +1,6 @@
 ---
 name: openeditor-project-setup
-description: Inspect an existing repo and generate OpenEditor onboarding config for it, or work on OpenEditor-compatible app workflows. Use when Codex needs to make a project OpenEditor-compatible by inferring framework or platform from the file tree, creating or updating `.logic-editor.json`, generating `oe-tests.json`, creating `oe-swift.json` for iOS or SwiftUI projects, generating OpenEditor spec/graph output, updating preview/test/project detection behavior, building UI or data/API inventory frameworks, or changing local desktop/agent integration features.
+description: Inspect an existing repo and generate OpenEditor onboarding config and lightweight runtime context, or work on OpenEditor-compatible app workflows. Use when Codex needs to infer web, Shopify, WordPress, static-generator, mobile, iOS, macOS, or multiplatform Apple projects; create or update `.logic-editor.json`, `oe-tests.json`, or `oe-swift.json`; plan minimal dependencies or MCP capabilities; generate OpenEditor spec/graph output; update preview/test/project detection behavior; build UI or data/API inventory frameworks; or change local desktop/agent integration features.
 ---
 
 # OpenEditor Project Setup
@@ -9,13 +9,14 @@ description: Inspect an existing repo and generate OpenEditor onboarding config 
 
 Use this skill to onboard an arbitrary repo into OpenEditor. The output is usually:
 
+- a dependency-free generated context bundle under `.openeditor/context/`
 - `.logic-editor.json`
 - `oe-tests.json` with multistep runs for the key preview surfaces
 - `oe-swift.json` for iOS or SwiftUI repos
 - `openeditor.spec.json` or generated project spec output when the user asks for a spec, project catalog, UI contract, or graph-based app definition
+- repository-owned flow documents under `.uidesign/flows/*.data-graph.json` when the repo provides enough evidence for meaningful architecture, delivery, data, access, or product flows
 - focused changes to OpenEditor app workflows when the target repo is OpenEditor itself
 - a UI inventory framework when the user needs to see screens, components, states, tokens, or source mappings
-- optional source-tagging guidance when the user wants the editor to identify components, screens, states, variants, or source ownership from app code
 - a data/API inventory framework when the user needs to see APIs being used, APIs available, entities, schemas, or dependencies
 - a short explanation of what was inferred vs. what still needs confirmation
 - an explicit classification of `preview-ready` or `source-only` for iOS/Swift repos
@@ -28,11 +29,18 @@ Do not ask the user for the `.logic-editor.json` or `oe-swift.json` schema when 
 Read only the references you need:
 
 - Always read [references/project-config.md](references/project-config.md)
+- Read [references/test-flows.md](references/test-flows.md) when defining flows, tests, or screenshot capture groups
 - Read [references/project-detection.md](references/project-detection.md) when inferring framework, port, or run command
 - Read [references/ios-config.md](references/ios-config.md) only for iOS or SwiftUI projects
 - Read [references/spec-format.md](references/spec-format.md) when generating `openeditor.spec.json`, project spec catalogs, UI specs, or graph specs
+- Read [references/data-graphs.md](references/data-graphs.md) when generating or updating documents displayed in the OpenEditor Flows pane
 - Read [references/frameworks.md](references/frameworks.md) when building UI inventory, visual inspection, data inventory, API inventory, or source-mapping features
 - Read [references/openeditor-app.md](references/openeditor-app.md) when changing OpenEditor itself, preview engines, project detection, desktop behavior, local agents, or app integration features
+- Read [references/local-agent-setup.md](references/local-agent-setup.md) when detecting Codex or Claude, choosing a local agent, or providing a copy-and-paste setup fallback
+- Read [references/runtime-context.md](references/runtime-context.md) when generating project context or planning runtime adapters
+- Read [references/platforms.md](references/platforms.md) only for Shopify, WordPress, Apple, or static-generator projects
+- Read [references/dependencies.md](references/dependencies.md) when a runtime capability is missing or installation is being considered
+- Read [references/mcp-capabilities.md](references/mcp-capabilities.md) when MCP configuration or capabilities are relevant
 
 ## Public-Safe Documentation Rules
 
@@ -57,6 +65,10 @@ Look for the smallest high-signal set of inputs:
 - iOS signals such as `*.xcodeproj`, `*.xcworkspace`, and `*.swift`
 - any existing `.logic-editor.json` or `oe-swift.json`
 
+Run `scripts/generate-project-context.sh --repo .` when a reusable context handoff will help. The script is read-only apart from its generated `.openeditor/context/` output and has no third-party runtime dependency.
+
+For graph-capable projects, preserve `uidesign.data-graph/v1` documents found either as direct `*.data-graph.json` files or embedded in `relatedArtifactDocuments`. Prefer explicit `extensions.focusPresets` group mappings. The Flows pane reads only declared project artifacts; it does not derive diagrams from App Preview routes or runtime state.
+
 Do not invent support for frameworks that the references do not cover.
 
 ### 2. Infer the project type conservatively
@@ -68,9 +80,11 @@ Prefer the real parser defaults from the references over generic assumptions.
 - `expo` -> port `8081`, run command `npx expo start`
 - `react-native` -> port `8081`, run command `npm start` or `bun start`
 - Vite React -> port `5173`
-- Shopify theme -> port `9292`, run command `shopify theme dev`
+- Shopify theme -> port `9292`, run command `openeditor-shopify-renderer --theme . --port 9292` when Connector provides the bundled renderer; Shopify CLI is not required for local OpenEditor previews
 - iOS -> port `0`, empty `runCommand`, plus `oe-swift.json`
 - Unknown web repo -> default to `type: "unknown"`, port `5173`, run command `npm run dev`
+
+Detect WordPress, macOS, Apple multiplatform, Hugo, Jekyll, and Eleventy for context and planning, but keep generated application config within the supported types documented in `references/project-config.md`. Read `references/platforms.md` for compatibility mappings.
 
 If the evidence is mixed, explain that uncertainty instead of pretending confidence.
 
@@ -89,13 +103,28 @@ Rules:
   - `{ "path": "/", "label": "Home" }`
 - Preserve existing config when updating; merge carefully instead of replacing unrelated fields
 - Do not invent unsupported keys
+- For a repository with multiple independently runnable apps, use the compound-target shape from `references/project-config.md`; keep the existing top-level runtime fields as the backward-compatible active target
+
+### 3a. Keep preview config in sync when the app changes
+
+The config files are the single source of truth OpenEditor uses to render previews. When app code changes the preview surface, update the config so previews and tests never go stale:
+
+- add, rename, or remove routes, paths, and query states in `.logic-editor.json` as they change in code
+- update `oe-tests.json` flows when the covered routes, steps, or URLs change
+- refresh `port`, `requiredPorts`, and `runCommand` when the local run layout changes
+- for iOS/SwiftUI, keep `oe-swift.json` accurate: update `views` as Swift view files are added, renamed, or removed, and keep `scheme` and `project` pointing at the real targets (see section 4)
+- after a meaningful edit pass, re-check the config against the current route structure instead of assuming it is still current
+
+This skill only manages OpenEditor config and preview surfaces. It never dictates how app code should be written, which framework or router to use, or how source files should be structured. Do not let config generation leak into code style or architecture suggestions unless the user explicitly asks. If the config workflow and app code conflict, keep app code authoritative and adjust the config to match.
 
 ### 4. Only generate `oe-swift.json` for real iOS projects
 
 When the repo is SwiftUI or Xcode-based:
 
 - infer `scheme` from the `.xcodeproj` or `.xcworkspace` name when possible
-- default simulator to `iPhone 16 Pro`
+- when multiple Xcode projects, workspaces, or app schemes exist, inspect their schemes and bundle/product evidence; do not select the first path alphabetically
+- represent independently runnable Apple apps with `targets`, and choose the active top-level target from explicit repo evidence such as an existing config, documented primary app, matching bundle name, or runnable shared scheme
+- do not emit a `simulator` field: available simulator devices differ per machine, and OpenEditor auto-selects and boots an available simulator
 - infer views from obvious `*View.swift` files
 - keep view entries simple unless the repo provides stronger signals
 - do not fabricate bundle IDs, deep links, or accessibility tap metadata unless the repo exposes them
@@ -130,17 +159,36 @@ When the user asks for a spec format, app spec, UI spec, graph spec, or project 
 - keep raw secrets out of spec files; use env references such as `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN`
 - do not push generated specs or private deployment information unless the user explicitly asks
 
+### 6a. Generate repository-owned flow documents
+
+When onboarding a project with enough source evidence for a meaningful system or process graph:
+
+- read `references/data-graphs.md`
+- preserve and update existing `*.data-graph.json` documents instead of replacing them
+- otherwise write one or more focused documents under `.uidesign/flows/`
+- derive nodes and relationships from repository evidence such as workspace boundaries, imports, API schemas, infrastructure declarations, auth policies, deployment workflows, and project documentation
+- record source evidence in node or edge extensions where practical
+- use `extensions.focusPresets` for user-facing tabs such as `Main flow`, `Delivery`, `Security`, or `All`; these names are project-defined
+- validate every generated document with `node scripts/validate-data-graph.mjs <path>` from this skill directory
+- do not use `.logic-editor.json` routes alone as an architecture model
+- do not couple a flow document to the currently selected App Preview route, pane, or runtime process
+- do not generate a speculative graph when the evidence cannot support at least two meaningful entities and one relationship
+
+The generated file is a normal, editable project artifact. Regeneration is an explicit setup/update action, never an editor-runtime fallback.
+
+Use `openeditor flows check --root .` for a read-only inventory. Use `openeditor flows refresh --root .` to preview the exact regeneration prompt. Only `openeditor flows refresh --root . --apply` launches Codex with project-scoped workspace-write access.
+
 ### 7. Build UI and data/API frameworks when requested
 
 When the user asks to look at the UI, inspect the UI, map screens, or understand APIs/data:
 
 - read `references/frameworks.md`
 - model UI as surfaces, states, components, tokens, screenshots, DOM snapshots, and source mappings
-- when source markup can be changed, recommend generic `data-ui-*` attributes to mark stable components, parts, states, variants, surfaces, platforms, and source ownership
 - model data as observed API usage, declared API surfaces, possible API surfaces, entities, schemas, auth requirements, and source mappings
 - classify evidence as `observed`, `declared`, `inferred`, or `possible`
 - redact sensitive values and use env references instead of raw secrets
 - prefer a general framework that works across React, Next, Astro, Shopify, iOS, Expo, React Native, and static projects
+- when source markup can be edited, suggest sparse generic tags such as `data-ui-component`, `data-ui-family`, `data-ui-kind`, `data-ui-part`, `data-ui-state`, `data-ui-variant`, and `data-ui-source` to map rendered UI back to source; keep tags opt-in and non-invasive
 
 ### 8. Work on OpenEditor itself when requested
 
@@ -162,6 +210,46 @@ If the repo is a supported type and the references here cover the config format:
 - ask follow-up questions only when a missing field would make the config invalid or misleading
 
 Do not stop with "I need the schema" for normal React, Next, Astro, Expo, React Native, Shopify, or iOS repos.
+
+### 10. Keep agent-assisted onboarding automatic but honest
+
+When OpenEditor can use a local Codex or Claude client:
+
+- use the detector in `scripts/detect-local-agents.sh`
+- distinguish installed, authenticated, preferred, and unknown states
+- never claim the user has a paid subscription based only on a binary or login
+- automatically use the only authenticated agent
+- reuse a saved local preference when both are authenticated
+- otherwise ask one concise agent-choice question
+- prefer the local app terminal or agent bridge; show the copy-and-paste fallback when unavailable
+- avoid persistent background agent work after setup finishes
+
+### 11. Plan dependencies without making discovery heavy
+
+When a preview capability is missing:
+
+- read `references/dependencies.md`
+- separate source inspection from managed runtime needs
+- prefer existing repo commands, lockfiles, native tools, external development URLs, and fallbacks
+- classify missing capabilities as required, recommended, or optional
+- never install during context generation
+- request explicit approval before installing a new project-local, user-local, system, container, or MCP dependency
+- regenerate context after an approved installation
+
+Do not require Docker, Node, PHP, Ruby, Shopify CLI, WordPress CLI, XcodeBuildMCP, or another platform tool merely to inspect source.
+
+### 12. Treat MCP servers as optional capability providers
+
+When MCP is relevant:
+
+- read `references/mcp-capabilities.md`
+- detect repository-local MCP configuration locations without copying their contents
+- ask the active client which tools and resources are actually available
+- map servers to capabilities and record a native or local fallback where practical
+- never claim a configured server is connected until its tools are visible
+- never install or authorize an MCP server without explicit user approval
+
+Essential onboarding and preview operations should not depend exclusively on an MCP server when a practical built-in or native fallback exists.
 
 ## Output Rules
 

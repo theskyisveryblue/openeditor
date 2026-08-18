@@ -1,4 +1,4 @@
 interface:
   display_name: "OpenEditor Project Setup"
-  short_description: "Infer and generate OpenEditor config, including source-only Swift classification"
-  default_prompt: "Use $openeditor-project-setup to inspect this repo, create or update .logic-editor.json, oe-tests.json, and oe-swift.json when needed, infer requiredPorts, include meaningful route, param, and state variants for previews and tests, and classify Swift/iOS output as preview-ready or source-only."
+  short_description: "Infer lightweight OpenEditor runtime context and config"
+  default_prompt: "Use $openeditor-project-setup to inspect this repo, generate dependency-free runtime context, create or update .logic-editor.json, oe-tests.json, and oe-swift.json when needed, generate OpenEditor spec/graph output when requested, cover Shopify, WordPress, static generators, mobile, and Apple targets conservatively, plan only the minimum missing dependencies, treat MCP servers as optional capability providers with fallbacks, keep secrets and core implementation details out of outputs, and classify preview readiness honestly."

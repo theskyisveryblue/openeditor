@@ -26,15 +26,73 @@ Use this file for the canonical `.logic-editor.json` shape.
 | `port` | `number` | yes | Expected local dev server port |
 | `requiredPorts` | `number[]` | no | Additional ports that must be alive for multi-service local stacks |
 | `runCommand` | `string` | usually | Empty string is valid for mobile or iOS projects |
-| `routes` | `array` | usually | At least one route, unless `pages` provides grouped routes |
-| `pages` | `array` | no | Optional route groups for projects with many pages or states |
+| `routes` | `array` | yes | At least one route |
 | `platform` | `string` | no | Useful for mobile projects |
 | `resolutions` | `number[]` | no | Widths for generated preview frames |
-| `canvas` | `object` | no | Canvas-level workspace settings, for example generated artboard layout |
 | `autoStart` | `boolean` | no | Whether OpenEditor should auto-start the local preview |
+| `automation` | `object` | no | Declarative, allowlisted local automation; never accepts shell commands |
 | `mobile` | `object` | no | Mobile metadata |
 | `ios` | `object` | no | iOS metadata when embedded inside `.logic-editor.json` |
 | `integrations` | `object` | no | Optional integration metadata |
+| `product` | `object` | no | Stable `{ id, label }` shared by related targets or repositories |
+| `activeTargetId` | `string` | no | Target selected when no explicit UI or URL selection exists |
+| `targets` | `array` | no | Independently runnable app targets in a compound repository |
+
+## Compound projects and products
+
+Use `targets` when one repository contains multiple independently runnable apps or schemes. Keep the top-level runtime fields as the backward-compatible active target.
+
+```json
+{
+  "name": "app-family",
+  "activeTargetId": "client-ios",
+  "type": "ios",
+  "port": 0,
+  "runCommand": "",
+  "routes": [{ "path": "/", "label": "Client" }],
+  "ios": {
+    "project": "ios/AppFamily.xcodeproj",
+    "scheme": "Client"
+  },
+  "targets": [
+    {
+      "id": "client-ios",
+      "label": "Client · iOS",
+      "product": { "id": "client-product", "label": "Client Product" },
+      "type": "ios",
+      "port": 0,
+      "runCommand": "",
+      "routes": [{ "path": "/", "label": "Client" }],
+      "ios": {
+        "project": "ios/AppFamily.xcodeproj",
+        "scheme": "Client"
+      },
+      "testsFile": "oe-tests.json"
+    },
+    {
+      "id": "operator-ios",
+      "label": "Operator · iOS",
+      "product": { "id": "operator-product", "label": "Operator Product" },
+      "type": "ios",
+      "port": 0,
+      "runCommand": "",
+      "routes": [{ "path": "/", "label": "Operator" }],
+      "ios": {
+        "project": "ios/AppFamily.xcodeproj",
+        "scheme": "Operator"
+      }
+    }
+  ]
+}
+```
+
+Rules:
+
+- Give every target a stable `id`, human label, runtime type, and complete runtime configuration.
+- Targets sharing a product ID can be grouped across separately granted repositories.
+- Do not place unrestricted absolute sibling-repository paths in target configuration.
+- Each referenced repository must still be granted independently through Connector.
+- A missing `targets` array remains a normal single-target project.
 
 ## Supported `type` values
 
@@ -69,67 +127,24 @@ Rules:
 - Every route needs `path` and `label`
 - `states` are optional
 - Only add `states` when the repo already uses meaningful query-driven variants
+- If route inference is weak, emit only `/`
 
-## Canvas shape
+## Shopify data association
+
+Shopify projects may identify the storefront data snapshot by URL:
 
 ```json
 {
-  "canvas": {
-    "artboardsPerRow": 2
+  "integrations": {
+    "shopify": {
+      "storeUrl": "https://brand.example"
+    }
   }
 }
 ```
 
-Rules:
-
-- `artboardsPerRow` controls generated preview groups on the canvas
-- use `2` by default for release workspaces
-- valid values are `1`, `2`, or `3`
-- If route inference is weak, emit only `/`
-
-## Page grouping
-
-Use `pages` when a project has enough routes or route states that the top-level config becomes hard to scan. OpenEditor flattens page routes internally for previews, so `routes` can be omitted when `pages` is present.
-
-```json
-{
-  "name": "contacts",
-  "type": "astro",
-  "port": 8741,
-  "runCommand": "./start.sh",
-  "pages": [
-    {
-      "id": "directory",
-      "label": "Directory",
-      "routes": [
-        { "path": "/contacts", "label": "Contacts" },
-        { "path": "/companies", "label": "Companies" }
-      ]
-    },
-    {
-      "id": "analysis",
-      "label": "Analysis",
-      "routes": [
-        {
-          "path": "/network",
-          "label": "Network Graph",
-          "states": [
-            { "label": "Default", "query": "" },
-            { "label": "Recent", "query": "?range=recent" }
-          ]
-        }
-      ]
-    }
-  ]
-}
-```
-
-Rules:
-
-- Keep page groups user-facing and small, such as `Directory`, `Workflow`, `Analysis`, or `Settings`
-- Put route `states` inside the route they modify
-- Do not duplicate the same route in both top-level `routes` and `pages`
-- Use top-level `routes` for small projects; use `pages` when grouping improves readability
+Keep credentials out of this field. It identifies brand/store data and is not an
+authorization mechanism.
 
 ## Multi-service stacks
 
@@ -165,3 +180,29 @@ When unsure:
 - do not invent `autoStart`
 - do not invent deployment URLs
 - prefer a smaller valid config over a broad speculative one
+
+## Screenshot automation
+
+iOS projects with deterministic `oe-swift.json` launch states may opt into background screenshot refresh:
+
+```json
+{
+  "automation": {
+    "afterSourceChange": {
+      "action": "captureChangedScreens",
+      "enabled": true,
+      "debounceMs": 1500
+    }
+  }
+}
+```
+
+Rules:
+
+- The Connector observes relevant source files regardless of which editor or agent changed them.
+- The action is an internal allowlisted operation; arbitrary commands, hooks, and launch arguments are rejected.
+- The project must already be granted to Connector and each captured state must be declared in `oe-swift.json`.
+- Use a debounce of at least 750 milliseconds. The Connector clamps values to the safe 0.75–60 second range and runs at most one incremental capture job per project.
+- Keep this opt-in because an iOS rebuild can consume substantial local resources.
+
+Agent integrations should call the single `openeditor_screens_capture` MCP tool after a completed edit batch and pass repository-relative `changedFiles`. OpenEditor maps directly declared view files to their states and safely refreshes all states when a shared Swift file, Xcode project, or configuration file changed. Agents then use `openeditor_screens_list` and `openeditor_screens_get`; screenshot bytes remain outside the repository.
